@@ -24,9 +24,9 @@ WordPress 既存サイトから `APP` へ利用者を誘導し、空室確認、
 - 利用者に予約関連の主要操作を WordPress 内で完結させない
 - `APP` は予約 UI と業務 API のフロントとして振る舞う
 - `APP` は Nuxt 4 の SPA として実装する
-- `APP` の公開パスは `/reservation`
+- `APP` の公開パスは `/app`
 - `API` の公開パスは `/api`
-- 予約用 `APP` の公開 URL は `https://renta-room.com/reservation`
+- 予約用 `APP` の公開 URL は `https://renta-room.com/app`
 - `API` の公開 URL は `https://renta-room.com/api`
 - 物理配置は `public_html/app`, `public_html/api`, `public_html/wp` とし、`public_html/.htaccess` で公開 URL を振り分ける
 
@@ -77,7 +77,7 @@ WordPress 既存サイトから `APP` へ利用者を誘導し、空室確認、
 
 1. 利用者が WordPress の部屋紹介ページを見る
 2. WordPress 上の `空室確認・予約する` ボタンを押す
-3. `/reservation` 配下の `APP` 予約入口ページへ遷移する
+3. `/app` 配下の `APP` 予約入口ページへ遷移する
 
 ### 配置とルーティング
 
@@ -92,22 +92,22 @@ WordPress 既存サイトから `APP` へ利用者を誘導し、空室確認、
 
 運用前提:
 
-- 利用者には `https://renta-room.com/reservation` を公開する
+- 利用者には `https://renta-room.com/app` を公開する
 - 実体は `public_html/app/` に配置する
 - `https://renta-room.com/api/...` は `public_html/api/` へルーティングする
 - 紹介ページや通常ページは WordPress 側へルーティングする
 
 ### 推奨入口 URL
 
-- 共通入口: `/reservation`
-- 部屋指定入口: `/reservation?room_id=room_001`
-- 日付指定入口: `/reservation?room_id=room_001&date=2026-05-10`
+- 共通入口: `/app`
+- 部屋指定入口: `/app?room_id=room_001`
+- 日付指定入口: `/app?room_id=room_001&date=2026-05-10`
 
 絶対 URL 例:
 
-- 共通入口: `https://renta-room.com/reservation`
-- 部屋指定入口: `https://renta-room.com/reservation?room_id=room_001`
-- 日付指定入口: `https://renta-room.com/reservation?room_id=room_001&date=2026-05-10`
+- 共通入口: `https://renta-room.com/app`
+- 部屋指定入口: `https://renta-room.com/app?room_id=room_001`
+- 日付指定入口: `https://renta-room.com/app?room_id=room_001&date=2026-05-10`
 
 ### クエリの扱い
 
@@ -119,7 +119,7 @@ WordPress 既存サイトから `APP` へ利用者を誘導し、空室確認、
 
 ### 1. 予約入口
 
-- パス: `/reservation`
+- パス: `/app`
 - 役割:
   - `APP` の予約導線の入口
   - WordPress からの遷移先
@@ -135,7 +135,7 @@ WordPress 既存サイトから `APP` へ利用者を誘導し、空室確認、
 
 ### 2. 部屋一覧
 
-- パス: `/reservation/rooms`
+- パス: `/app/rooms`
 - 役割:
   - 予約可能な部屋一覧表示
   - 部屋ごとの価格、定員、サムネイル表示
@@ -156,7 +156,7 @@ WordPress 既存サイトから `APP` へ利用者を誘導し、空室確認、
 
 ### 3. 部屋詳細・空室確認
 
-- パス: `/reservation/rooms/{id}`
+- パス: `/app/rooms/{id}`
 - 役割:
   - 部屋詳細表示
   - 適用される予約粒度、利用可能時間の案内
@@ -191,7 +191,7 @@ UI 方針:
 
 ### 4. 日付・時間選択
 
-- パス: `/reservation/rooms/{id}/entry`
+- パス: `/app/rooms/{id}/entry`
 - 役割:
   - 日付選択
   - 時間帯選択
@@ -239,7 +239,7 @@ UI 前提:
 
 ### 6. 予約確認
 
-- パス: `/reservation/confirm`
+- パス: `/app/confirm`
 - 役割:
   - 選択した部屋、日時、料金を確認する
   - `requested_*` と料金を表示する
@@ -264,7 +264,7 @@ UI 前提:
 
 ### 7. 決済
 
-- パス: `/reservation/payment/{reservationId}`
+- パス: `/app/payment/{reservationId}`
 - 役割:
   - Stripe Payment Element の表示
   - 決済開始
@@ -278,9 +278,9 @@ UI 前提:
 ### 8. 決済結果
 
 - パス:
-  - `/reservation/payment/{reservationId}/processing`
-  - `/reservation/reservations/{reservationId}`
-  - `/reservation/payment/{reservationId}/failed`
+- `/app/payment/{reservationId}/processing`
+- `/app/reservations/{reservationId}`
+- `/app/payment/{reservationId}/failed`
 - 役割:
   - 決済後の状態表示
   - `Webhook` 反映待ち
@@ -456,17 +456,17 @@ UI 方針:
 ### 標準予約フロー
 
 1. WordPress
-2. `/reservation`
-3. `/reservation/rooms`
-4. `/reservation/rooms/{id}`
-5. `/reservation/rooms/{id}/entry`
+2. `/app`
+3. `/app/rooms`
+4. `/app/rooms/{id}`
+5. `/app/rooms/{id}/entry`
 6. 日時選択内容を一時保持する
 7. 未ログインなら `/login` または `/register`
-8. 認証成功後に保持していた日時選択内容で `/reservation/confirm` へ復帰
+8. 認証成功後に保持していた日時選択内容で `/app/confirm` へ復帰
 9. `POST /api/reservations`
-10. `/reservation/payment/{reservationId}`
-11. `/reservation/payment/{reservationId}/processing`
-12. 成功なら `/reservation/reservations/{reservationId}`
+10. `/app/payment/{reservationId}`
+11. `/app/payment/{reservationId}/processing`
+12. 成功なら `/app/reservations/{reservationId}`
 13. `/mypage/reservations/{id}`
 
 ### 未ログイン時の予約導線ルール
@@ -494,7 +494,7 @@ UI 方針:
   "room_id": "room_001",
   "requested_start_at": "2026-06-10T10:00:00+09:00",
   "requested_end_at": "2026-06-10T11:00:00+09:00",
-  "return_path": "/reservation/confirm",
+  "return_path": "/app/confirm",
   "saved_at": "2026-06-05T14:00:00+09:00"
 }
 ```
@@ -517,7 +517,7 @@ UI 方針:
 1. 未ログインで `予約へ進む` を押した時点で `reservation_draft` を保存する
 2. `/login` または `/register` へ遷移する
 3. 認証成功後に `reservation_draft` を読む
-4. 必須項目がそろっていれば `/reservation/confirm` へ戻す
+4. 必須項目がそろっていれば `/app/confirm` へ戻す
 5. `POST /api/reservations` 成功後は `reservation_draft` を削除する
 6. `409 RESERVATION_CONFLICT` の場合は `reservation_draft` を保持したまま日時選択へ戻す
 
@@ -531,7 +531,7 @@ UI 方針:
 
 1. /mypage/reservations/{id}
 2. payment_status = failed または pending
-3. /reservation/payment/{reservationId}
+3. /app/payment/{reservationId}
 
 再案内一覧のルール:
 
@@ -564,7 +564,7 @@ UI 方針:
 - 決済後は予約詳細画面で `Webhook` 反映待ちを考慮する
 - 一覧、詳細、予約確認の各段階で「価格」「日時」「人数」を見失わせない
 - モバイル利用を前提に、下部固定 CTA やステップ表示を検討する
-- Nuxt 4 SPA を `/reservation` 配下に置く前提なので、内部リンクは `baseURL` を前提に実装する
+- Nuxt 4 SPA を `/app` 配下に置く前提なので、内部リンクは `baseURL` を前提に実装する
 - API 呼び出しは常に `/api/...` を基準にする
 
 ## WordPress との責務分担

@@ -22,7 +22,7 @@ public_html/
 
 - サービス名は `レンタルーム`
 - ベース URL は `https://renta-room.com/`
-- 予約用 `APP` は `https://renta-room.com/reservation`
+- 予約用 `APP` は `https://renta-room.com/app`
 - `API` は `https://renta-room.com/api`
 - 紹介ページは WordPress で実装する
 - WordPress 本体は `public_html/wp/` に置く
@@ -32,7 +32,7 @@ public_html/
 
 役割:
 
-- `/reservation` を `app/` へ渡す
+- `/app` を `app/` へ渡す
 - `/api` を `api/` へ渡す
 - それ以外を WordPress へ渡す
 
@@ -45,9 +45,14 @@ RewriteEngine On
 # /api は api ディレクトリへ渡す
 RewriteRule ^api(/.*)?$ api$1 [L]
 
-# /reservation は app ディレクトリへ渡す
-RewriteRule ^reservation$ app/ [L]
-RewriteRule ^reservation/(.*)$ app/$1 [L]
+# /app は app ディレクトリへ渡す
+RewriteRule ^app$ app/ [L]
+RewriteRule ^app/(.*)$ app/$1 [L]
+
+# WordPress の公開ディレクトリ・主要エンドポイントを wp 配下へ渡す
+RewriteRule ^((?:wp-admin|wp-content|wp-includes)(?:/.*)?)$ wp/$1 [L]
+RewriteRule ^(wp-login\.php|wp-cron\.php|wp-comments-post\.php|wp-activate\.php|wp-signup\.php|xmlrpc\.php)$ wp/$1 [L]
+RewriteRule ^login_34690(.*)$ wp/login_34690$1 [L]
 
 # public_html 直下の既存ファイル・既存ディレクトリはそのまま返す
 RewriteCond %{REQUEST_FILENAME} -f [OR]
@@ -68,21 +73,22 @@ RewriteRule ^ index.php [L]
 - `Options -MultiViews` は意図しないパス解決を防ぐために入れる
 - `public_html/index.php` をルート公開用の入口にし、そこで `wp/wp-blog-header.php` を読む構成を前提にする
 - WordPress の標準 rewrite は `public_html/wp/.htaccess` に置く想定
-- `wp-admin` や `wp-content` なども `wp/` 配下にあるため、このルールで WordPress 側へ流せる
+- `wp-admin` `wp-content` `wp-includes` や `wp-login.php` などは、先に明示的に `wp/` 配下へ流すと 404 を避けやすい
+- SiteGuard などでログインURLを `login_34690` のように変更している場合、ルート側は `wp/login_34690` へ渡し、`wp/.htaccess` 側の SiteGuard ルールを `/wp/` 配置に合わせる
 
 ## 2. `public_html/app/.htaccess`
 
 役割:
 
 - Nuxt SPA の直アクセスを `index.html` へフォールバックする
-- `reservation/rooms/...` のような深い URL でもアプリを表示できるようにする
+- `app/rooms/...` のような深い URL でもアプリを表示できるようにする
 
 設定例:
 
 ```apache
 Options -MultiViews
 RewriteEngine On
-RewriteBase /reservation/
+RewriteBase /app/
 
 # 実ファイル・実ディレクトリがあればそのまま返す
 RewriteCond %{REQUEST_FILENAME} -f [OR]
@@ -96,7 +102,7 @@ RewriteRule ^ index.html [L]
 補足:
 
 - Nuxt を静的配備する前提の例
-- `app.baseURL = '/reservation/'` を Nuxt 側で設定する前提
+- `app.baseURL = '/app/'` を Nuxt 側で設定する前提
 - アセット URL が相対パスになっていないかデプロイ前に確認する
 
 ## 3. `public_html/api/.htaccess`
@@ -180,9 +186,9 @@ RewriteRule . /wp/index.php [L]
 - `https://renta-room.com/wp/wp-admin/`
   - WordPress 管理画面へ入れる
 - WordPress 設定画面で `WordPress アドレス = /wp`、`サイトアドレス = /` になっている
-- `https://renta-room.com/reservation`
+- `https://renta-room.com/app`
   - 予約 APP の入口が表示される
-- `https://renta-room.com/reservation/rooms/test`
+- `https://renta-room.com/app/rooms/test`
   - SPA の直アクセスが `index.html` へフォールバックされる
 - `https://renta-room.com/api/health`
   - API の疎通確認ができる

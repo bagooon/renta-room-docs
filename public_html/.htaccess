@@ -1,0 +1,28 @@
+Options -MultiViews
+RewriteEngine On
+
+# /api は api ディレクトリへ渡す
+RewriteRule ^api(/.*)?$ api$1 [L]
+
+# /app は app ディレクトリへ渡す
+RewriteRule ^app$ app/ [L]
+RewriteRule ^app/(.*)$ app/$1 [L]
+
+# WordPress の公開ディレクトリ・主要エンドポイントを wp 配下へ渡す
+RewriteRule ^((?:wp-admin|wp-content|wp-includes)(?:/.*)?)$ wp/$1 [L]
+RewriteRule ^(wp-login\.php|wp-cron\.php|wp-comments-post\.php|wp-activate\.php|wp-signup\.php|xmlrpc\.php)$ wp/$1 [L]
+# SiteGuard の変更後ログインURLも wp 配下へ渡す
+RewriteRule ^login_34690(.*)$ wp/login_34690$1 [L]
+
+# public_html 直下の既存ファイル・既存ディレクトリはそのまま返す
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# WordPress 配下の実ファイル・実ディレクトリがあればそちらを優先
+RewriteCond %{DOCUMENT_ROOT}/wp/$1 -f [OR]
+RewriteCond %{DOCUMENT_ROOT}/wp/$1 -d
+RewriteRule ^(.+)$ wp/$1 [L]
+
+# それ以外はルートの index.php に渡す
+RewriteRule ^ index.php [L]

@@ -27,9 +27,9 @@
 - 一般的なレンタルサーバで運用できることを優先し、バックエンドは PHP で構築する
 - `APP` は Nuxt 4 で実装する
 - `APP` は SPA 構成で運用する
-- WordPress サイトと同居させるため、`APP` の公開パスは `/reservation` とする
+- WordPress サイトと同居させるため、`APP` の公開パスは `/app` とする
 - バックエンド API の公開パスは `/api` とする
-- 予約用 `APP` の公開 URL は `https://renta-room.com/reservation` とする
+- 予約用 `APP` の公開 URL は `https://renta-room.com/app` とする
 - `API` の公開 URL は `https://renta-room.com/api` とする
 - 物理配置は `public_html/app`, `public_html/api`, `public_html/wp` に分離する
 
@@ -41,8 +41,10 @@
 - 利用者ログイン / パスワード再発行 UI
 - 予約一覧 / 予約詳細 UI
 - Stripe.js を用いた決済 UI
+- 領収書表示 UI
 - 管理者ログイン UI
 - 管理者向け予約管理 / 部屋管理 UI
+- 管理者向け月間予約カレンダー UI
 
 利用者予約導線の前提:
 
@@ -59,6 +61,7 @@
 - 決済 API
 - 管理 API
 - SwitchBot 連携 API
+- 領収書 URL 同期
 - MySQL アクセス
 
 #### `old`
@@ -87,9 +90,9 @@
 
 - `old` は `Nuxt 3 + Vuetify` ベースのため、Nuxt 4 へ読み替えつつ画面構造の参考にする
 - ただし Supabase 前提コードはそのまま流用せず、API 通信へ置き換える
-- 配置先が `/reservation` のため、Nuxt 側で `app.baseURL = '/reservation/'` 相当の設定を前提にする
-- SPA 配置のため、レンタルサーバ側で `/reservation/*` を `APP` のエントリへフォールバックさせる設定が必要
-- Xサーバ運用を前提に、`public_html/.htaccess` で `/reservation` を `app` 配下へルーティングする
+- 配置先が `/app` のため、Nuxt 側で `app.baseURL = '/app/'` 相当の設定を前提にする
+- SPA 配置のため、レンタルサーバ側で `/app/*` を `APP` のエントリへフォールバックさせる設定が必要
+- Xサーバ運用を前提に、`public_html/.htaccess` で `/app` を `app` 配下へルーティングする
 - 開発時の `/api/*` 呼び出しは Nuxt の dev proxy で `https://renta-room.com/api/` へ中継する
 - Stripe 公開鍵は `nuxt.config.ts` の `runtimeConfig.public.stripePublishableKey` を経由してフロントへ渡す
 - 運用上の実値は `NUXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` などの環境変数で切り替える想定とする
@@ -119,13 +122,14 @@
 
 ### フロントから見た構成
 
-1. WordPress サイトから `/reservation` 配下の `APP` へ遷移する
+1. WordPress サイトから `/app` 配下の `APP` へ遷移する
 2. `APP` が `/api` に対してログイン、予約、決済関連のリクエストを送る
 3. `API` が MySQL を参照して認証、予約、部屋情報、設定情報を処理する
 4. 決済時は `APP` で Stripe.js を用いてカード情報を安全に送信する
 5. `API` は Stripe の決済結果を受けて予約の支払状態を更新する
 6. 利用時間内の解錠要求時のみ、`API` から SwitchBot API を呼び出す
 7. `API` は仮予約の期限切れを `expired` として扱い、予約枠を再開放する
+8. `API` は Stripe Webhook で `receipt_url` を保存し、予約詳細から参照できるようにする
 
 ### 実装上の分離
 
@@ -149,17 +153,17 @@
 - `public_html/index.php`
   - WordPress ルート公開用の入口
 - `public_html/.htaccess`
-  - `/reservation` と `/api` と WordPress へのルーティングを担当する
-- 予約導線の公開URLは `/reservation`
+  - `/app` と `/api` と WordPress へのルーティングを担当する
+- 予約導線の公開URLは `/app`
 - API エンドポイントの公開URLは `/api/...`
 - ベース URL は `https://renta-room.com/` とする
-- 予約入口の絶対 URL は `https://renta-room.com/reservation` とする
+- 予約入口の絶対 URL は `https://renta-room.com/app` とする
 - API エンドポイントの絶対 URL は `https://renta-room.com/api/...` とする
 - WordPress 設定は `WordPress アドレス (URL) = https://renta-room.com/wp`、`サイトアドレス (URL) = https://renta-room.com/` を前提にする
 
 補足:
 
-- SPA なので、`/reservation/rooms/{id}` のような直アクセスに対応できるよう rewrite 設定が必要
+- SPA なので、`/app/rooms/{id}` のような直アクセスに対応できるよう rewrite 設定が必要
 - API は WordPress テーマ配下ではなく、独立した `public_html/api/` 配置を前提にする
 - WordPress は `public_html/wp/` に置き、トップ導線や紹介ページは `.htaccess` で WordPress 側へ流す
 - ファイル更新やバックアップのしやすさを優先し、`APP` / `API` / `WordPress` を物理ディレクトリで分離する
@@ -168,7 +172,7 @@
 
 目的:
 
-- `/reservation` を `public_html/app/` の SPA へルーティングする
+- `/app` を `public_html/app/` の SPA へルーティングする
 - `/api` を `public_html/api/` の PHP API へルーティングする
 - それ以外を `public_html/wp/` の WordPress へルーティングする
 
@@ -195,9 +199,9 @@ RewriteEngine On
 # /api は api ディレクトリへ渡す
 RewriteRule ^api(/.*)?$ api$1 [L]
 
-# /reservation は app ディレクトリへ渡す
-RewriteRule ^reservation$ app/ [L]
-RewriteRule ^reservation/(.*)$ app/$1 [L]
+# /app は app ディレクトリへ渡す
+RewriteRule ^app$ app/ [L]
+RewriteRule ^app/(.*)$ app/$1 [L]
 
 # 既存の実ファイル・実ディレクトリはそのまま返す
 RewriteCond %{REQUEST_FILENAME} -f [OR]
@@ -215,13 +219,13 @@ RewriteRule ^ index.php [L]
 
 補足:
 
-- `/reservation` 配下の直アクセスに対応するため、`app/` 側にも SPA 用の `.htaccess` が必要になる
+- `/app` 配下の直アクセスに対応するため、`app/` 側にも SPA 用の `.htaccess` が必要になる
 - `public_html/app/.htaccess` では、実ファイルがなければ `index.html` へフォールバックさせる
 - `api/` 側は `public_html/api/index.php` を公開入口にし、`public_html/api/.htaccess` で `index.php` へ流す
 - WordPress は `public_html/index.php` をルート公開用入口にし、WordPress 標準の rewrite ルールは `public_html/wp/.htaccess` 側へ寄せる
 - API のローカル起動は `composer.json` の `start = php -S localhost:8080 -t .` を前提にする
 - Xサーバ上で Composer を実行するときは `php8.3 ~/bin/composer [option]` を使う
-- 実際の Xサーバ環境では `MultiViews` や既存設定の影響を受けることがあるため、初回デプロイ時に `/`, `/wp/wp-admin/`, `/reservation`, `/reservation/rooms/test`, `/api/health` を個別確認する
+- 実際の Xサーバ環境では `MultiViews` や既存設定の影響を受けることがあるため、初回デプロイ時に `/`, `/wp/wp-admin/`, `/app`, `/app/rooms/test`, `/api/health` を個別確認する
 
 詳細な設定例:
 
@@ -299,6 +303,7 @@ RewriteRule ^ index.php [L]
 - 重複判定は MySQL クエリで厳密に行う
 - 支払状態は bool ではなく状態値で持つ
 - 予約の「利用者に見せる時間」と「実際に占有する時間」は分けて扱える設計にする
+- 予約停止枠も通常予約と同様に重複判定へ含める
 
 ### 予約枠と入れ替え時間の方針
 
@@ -370,6 +375,7 @@ RewriteRule ^ index.php [L]
 - Stripe PaymentIntent を作成する
 - `client_secret` を返却する
 - 決済成功後に予約の `payment_status` を `paid` へ更新する
+- `payment_intent.succeeded` で `receipt_url` を保存する
 - `payment_expires_at` を超過した仮予約を `expired` へ更新する
 
 ### 決済実装の注意
@@ -378,6 +384,8 @@ RewriteRule ^ index.php [L]
 - 返金や失敗時の状態遷移を `reservations` に反映できるようにする
 - 期限切れの仮予約は重複判定から除外し、予約枠を再開放する
 - 期限切れ判定は API の参照時チェックに加え、Xサーバ cron の CLI バッチでも定期実行できるようにする
+- 決済中は `payment_started_at` を更新し、一定時間は失効対象外にして誤失効を避ける
+- 決済成功後に予約を確定できなかった場合は自動返金する
 
 ## SwitchBot 連携方針
 
@@ -455,6 +463,7 @@ RewriteRule ^ index.php [L]
 - `PATCH /admin/settings`
 - `PATCH /admin/reservation-config`
 - `POST /admin/doors/command`
+- `GET /admin/reservation-calendar`
 
 ### 予約 API の補足方針
 
@@ -486,6 +495,7 @@ RewriteRule ^ index.php [L]
 
 - `payment_pending_expires_minutes` を予約作成時点で `payment_expires_at` に反映する
 - `pending` かつ `payment_expires_at < now` の予約は `expired` とする
+- ただし決済開始後は `payment_started_at + 一定猶予時間` も考慮して失効判定する
 - `expired` の予約は予約枠計算と重複判定から除外する
 - `APP` は `payment_expires_at` を使って残り時間を表示し、期限切れ時は再予約導線を案内する
 - Xサーバでは CLI バッチ `public_html/api/bin/expire-reservations.php` を cron で定期実行する
@@ -517,6 +527,7 @@ RewriteRule ^ index.php [L]
 - 管理画面 API
 - SwitchBot 解錠 API
 - 監査ログ整備
+- 月間予約カレンダー
 
 ### Phase 5
 
