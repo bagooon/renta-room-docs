@@ -172,6 +172,12 @@
 3. `last_login_at` を更新する
 4. `role = client` の JWT を発行する
 
+### APP 側の遷移ルール
+
+- `redirect` クエリがあれば、その URL を最優先の復帰先とする
+- `reservation_draft.return_path` があれば、仮予約から決済導線へ戻すためにその値を使う
+- 上記がない通常ログインでは、利用者を `/app/reservations` のマイページへ遷移させる
+
 ## 3. `GET /auth/me`
 
 ### 目的
@@ -197,7 +203,85 @@
 }
 ```
 
-## 4. `POST /auth/logout`
+## 4. `PATCH /auth/me`
+
+### 目的
+
+ログイン中利用者のプロフィールを更新する。
+
+### 認証
+
+- 必要
+
+### リクエスト例
+
+```json
+{
+  "name": "山田 花子",
+  "email": "hanako@example.com"
+}
+```
+
+### バリデーション
+
+- `name` は必須
+- `email` は必須
+- `email` は形式チェックを行う
+- `email` は他利用者と重複不可
+
+### 成功レスポンス例
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "cli_001",
+    "name": "山田 花子",
+    "email": "hanako@example.com",
+    "phone": "09012345678",
+    "role": "client"
+  }
+}
+```
+
+## 5. `POST /auth/password/change`
+
+### 目的
+
+ログイン中利用者が現在のパスワードを確認したうえで、新しいパスワードへ変更する。
+
+### 認証
+
+- 必要
+
+### リクエスト例
+
+```json
+{
+  "current_password": "CurrentPlainTextPassword",
+  "password": "NewPlainTextPassword",
+  "password_confirmation": "NewPlainTextPassword"
+}
+```
+
+### バリデーション
+
+- `current_password` が現在のパスワードと一致する
+- `password` と `password_confirmation` が一致する
+- `password` は最低 `8文字`
+
+### 成功レスポンス例
+
+```json
+{
+  "success": true,
+  "data": {
+    "password_changed": true
+  }
+}
+```
+
+## 6. `POST /auth/logout`
 
 ### 目的
 
@@ -224,7 +308,7 @@
 }
 ```
 
-## 5. `POST /auth/password/forgot`
+## 7. `POST /auth/password/forgot`
 
 ### 目的
 
@@ -264,7 +348,7 @@
 }
 ```
 
-## 6. `POST /auth/password/reset`
+## 8. `POST /auth/password/reset`
 
 ### 目的
 
@@ -302,7 +386,7 @@
 }
 ```
 
-## 7. `POST /admin/auth/login`
+## 9. `POST /admin/auth/login`
 
 ### 目的
 
@@ -348,7 +432,7 @@
 4. `last_login_at` を更新する
 5. `role = admin` の JWT を発行する
 
-## 8. `GET /admin/auth/me`
+## 10. `GET /admin/auth/me`
 
 ### 目的
 
@@ -364,6 +448,8 @@
 ### 利用者トークンで許可する API
 
 - `/auth/me`
+- `/auth/password/change`
+- `/auth/logout`
 - `/reservations`
 - `/reservations/{id}`
 - `/reservations/{id}/cancel`

@@ -77,7 +77,7 @@ WordPress 既存サイトから `APP` へ利用者を誘導し、空室確認、
 
 1. 利用者が WordPress の部屋紹介ページを見る
 2. WordPress 上の `空室確認・予約する` ボタンを押す
-3. `/app` 配下の `APP` 予約入口ページへ遷移する
+3. `/app` 配下の `APP` へ遷移し、実装上は `/app/rooms` へ案内する
 
 ### 配置とルーティング
 
@@ -121,11 +121,10 @@ WordPress 既存サイトから `APP` へ利用者を誘導し、空室確認、
 
 - パス: `/app`
 - 役割:
-  - `APP` の予約導線の入口
+  - `APP` の公開入口
   - WordPress からの遷移先
-  - 部屋未指定なら部屋一覧へ誘導
-  - `room_id` クエリがあれば該当部屋の予約導線へ誘導
-  - 初回利用者にも「何をすればよいか」が分かる検索 / 空室確認の入口にする
+  - 現在の実装では独立したトップ画面は持たず、`/app/rooms` へリダイレクトする
+  - `room_id` クエリがあれば、必要に応じて該当部屋の導線復帰に利用する
 
 利用API:
 
@@ -231,6 +230,9 @@ UI 前提:
   - 既存会員はログイン
   - 新規利用者はアカウント登録
   - 未ログイン状態で選択済みの `room_id`, `requested_start_at`, `requested_end_at` を保持したまま復帰させる
+  - 通常ログイン / 通常新規登録では、完了後に `/app/reservations` のマイページへ遷移させる
+  - `redirect` クエリがある場合はその URL を優先する
+  - `reservation_draft.return_path` がある場合は、仮予約から決済導線への復帰を優先する
 
 利用API:
 
@@ -298,21 +300,38 @@ UI 方針:
 - `GET /api/reservations/{id}/payment-status`
 - `GET /api/reservations/{id}`
 
-### 9. 予約一覧
+### 9. マイページ / 予約一覧
 
-- パス: `/mypage/reservations`
+- パス: `/app/reservations`
 - 役割:
+  - ログイン中利用者のマイページ
+  - 利用者プロフィールの表示
+  - ユーザー名変更
+  - メールアドレス変更
+  - パスワード変更
+  - 現在操作可能な鍵の一覧表示
+  - 利用時間内の予約をすぐ解錠 / 施錠できる導線
   - ログイン中利用者の予約一覧表示
   - 支払状態、キャンセル状態の確認
   - 各予約詳細への導線
 
+表示ルール:
+
+- マイページ上部に、現在の時刻で鍵操作できる予約だけを表示する
+- 対象は、支払済みの通常予約と、有効な予約停止枠のうち、占有時間内にあるものとする
+- 一覧に表示された鍵UIから、そのまま解錠 / 施錠を実行できるようにする
+- 各鍵UIには予約詳細への導線も併設する
+
 利用API:
 
+- `GET /api/auth/me`
+- `PATCH /api/auth/me`
+- `POST /api/auth/password/change`
 - `GET /api/reservations`
 
 ### 10. 予約詳細
 
-- パス: `/mypage/reservations/{id}`
+- パス: `/app/reservations/{id}`
 - 役割:
   - 部屋名、予約時間、料金、決済状態表示
   - キャンセル
@@ -451,6 +470,18 @@ UI 方針:
 
 - `POST /api/admin/doors/command`
 
+### 10. 月間予約状況
+
+- パス: `/admin/reservation-calendar`
+- 役割:
+  - 年月を指定して月間の予約状況を一覧する
+  - 1日ごと、15分ごとの枠で各ルームの埋まり状況を俯瞰する
+  - 通常予約と予約停止枠を色分けして判別できるようにする
+
+利用API:
+
+- `GET /api/admin/reservation-calendar`
+
 ## 利用者向け画面遷移
 
 ### 標準予約フロー
@@ -467,7 +498,7 @@ UI 方針:
 10. `/app/payment/{reservationId}`
 11. `/app/payment/{reservationId}/processing`
 12. 成功なら `/app/reservations/{reservationId}`
-13. `/mypage/reservations/{id}`
+13. 必要に応じて `/app/reservations` へ戻る
 
 ### 未ログイン時の予約導線ルール
 
@@ -517,7 +548,7 @@ UI 方針:
 1. 未ログインで `予約へ進む` を押した時点で `reservation_draft` を保存する
 2. `/login` または `/register` へ遷移する
 3. 認証成功後に `reservation_draft` を読む
-4. 必須項目がそろっていれば `/app/confirm` へ戻す
+4. `redirect` クエリがある場合はそれを優先し、なければ `reservation_draft.return_path` を使って `/app/confirm` などへ戻す
 5. `POST /api/reservations` 成功後は `reservation_draft` を削除する
 6. `409 RESERVATION_CONFLICT` の場合は `reservation_draft` を保持したまま日時選択へ戻す
 
@@ -529,22 +560,23 @@ UI 方針:
 
 ### 再決済フロー
 
-1. /mypage/reservations/{id}
+1. /app/reservations/{id}
 2. payment_status = failed または pending
 3. /app/payment/{reservationId}
 
 再案内一覧のルール:
 
 - pending は 支払いへ進む を表示する
-- xpired は 空き状況を再確認する を表示する
-- xpired はそのまま決済へ進ませず、eservation_draft に戻して部屋詳細へ案内する
+- expired は 空き状況を再確認する を表示する
+- expired はそのまま決済へ進ませず、`reservation_draft` に戻して部屋詳細へ案内する
 - 部屋詳細では、同じ日時がまだ空いている場合のみ開始時間と終了時間を自動復元する
-- 一覧に表示する xpired は xpired_at から24時間以内、かつ利用開始時刻前のものに限る
-- 利用開始時刻を過ぎた pending / xpired は一覧に表示しない
+- 一覧に表示する expired は `expired_at` から24時間以内、かつ利用開始時刻前のものに限る
+- 利用開始時刻を過ぎた pending / expired は一覧に表示しない
+
 ### キャンセルフロー
 
-1. `/mypage/reservations`
-2. `/mypage/reservations/{id}`
+1. `/app/reservations`
+2. `/app/reservations/{id}`
 3. キャンセル確認
 4. 一覧へ戻る
 
@@ -577,6 +609,8 @@ UI 方針:
 - 料金説明
 - FAQ
 - 集客導線
+- 公開向け部屋紹介ページ
+  - 実装上は公開 API から部屋情報・設備情報を取得して埋め込める
 
 ### APP が持つもの
 
@@ -584,6 +618,9 @@ UI 方針:
 - 予約ステップ UI
 - ログイン / 新規登録
 - パスワード再発行
+- マイページ
+  - 氏名 / メールアドレス表示
+  - 氏名変更 / メールアドレス変更 / パスワード変更
 - 決済
 - 予約一覧 / 予約詳細
 - 当日利用導線

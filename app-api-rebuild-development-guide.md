@@ -39,6 +39,11 @@
 
 - 利用者向け予約 UI
 - 利用者ログイン / パスワード再発行 UI
+- マイページ UI
+  - 利用者情報表示
+  - 氏名変更
+  - メールアドレス変更
+  - パスワード変更
 - 予約一覧 / 予約詳細 UI
 - Stripe.js を用いた決済 UI
 - 領収書表示 UI
@@ -57,6 +62,8 @@
 #### `API`
 
 - 認証 API
+- 利用者プロフィール更新 API
+- 利用者パスワード変更 API
 - 予約 API
 - 決済 API
 - 管理 API
@@ -123,6 +130,7 @@
 ### フロントから見た構成
 
 1. WordPress サイトから `/app` 配下の `APP` へ遷移する
+   - `/app` 自体は実装上 `/app/rooms` へ案内する
 2. `APP` が `/api` に対してログイン、予約、決済関連のリクエストを送る
 3. `API` が MySQL を参照して認証、予約、部屋情報、設定情報を処理する
 4. 決済時は `APP` で Stripe.js を用いてカード情報を安全に送信する
@@ -138,6 +146,7 @@
 - 秘密鍵、Stripe Secret Key、SwitchBot Token などはフロントへ出さない
 - `APP` からの API 呼び出し先は `/api` を基準に統一する
 - WordPress 配下の相対パス事故を避けるため、API パスは `/api/...` のルート基準で扱う
+- WordPress の公開向け部屋紹介ページでも、公開 API から部屋情報・設備情報を取得して埋め込めるようにする
 
 ### 配置前提
 
@@ -244,10 +253,13 @@ RewriteRule ^ index.php [L]
 
 1. 新規登録
 2. ログイン
-3. ログアウト
-4. パスワード再発行申請
-5. 再発行トークン確認
-6. 新パスワード設定
+3. `/app/reservations` のマイページで氏名 / メールアドレス確認
+4. マイページで氏名 / メールアドレス変更
+5. マイページでパスワード変更
+6. ログアウト
+7. パスワード再発行申請
+8. 再発行トークン確認
+9. 新パスワード設定
 
 ### パスワード再発行
 
@@ -437,6 +449,10 @@ RewriteRule ^ index.php [L]
 
 - `POST /auth/register`
 - `POST /auth/login`
+- `GET /auth/me`
+- `PATCH /auth/me`
+- `POST /auth/password/change`
+- `POST /auth/logout`
 - `POST /auth/password/forgot`
 - `POST /auth/password/reset`
 - `GET /rooms`
