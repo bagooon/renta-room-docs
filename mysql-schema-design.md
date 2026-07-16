@@ -335,7 +335,7 @@ Web 予約を止めるための管理ブロック枠です。
 
 ### 10. `reservation_block_reason_options`
 
-予約停止枠の理由候補マスタです。
+運営予定枠の理由候補マスタです。
 
 主な用途:
 
@@ -346,6 +346,8 @@ Web 予約を止めるための管理ブロック枠です。
 
 - `id`
 - `label`
+- `text_color`
+- `bg_color`
 - `sort_order`
 - `is_active`
 - `created_at`
@@ -636,6 +638,8 @@ CREATE TABLE reservation_blocks (
 CREATE TABLE reservation_block_reason_options (
   id BIGINT NOT NULL AUTO_INCREMENT,
   label VARCHAR(255) NOT NULL,
+  text_color VARCHAR(50) DEFAULT NULL,
+  bg_color VARCHAR(50) DEFAULT NULL,
   sort_order INT NOT NULL DEFAULT 0,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
