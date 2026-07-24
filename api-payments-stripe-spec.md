@@ -319,7 +319,7 @@ php8.3 ~/bin/composer dump-autoload
 - 初期実装でも `リクエスト時チェック + cron` の併用を推奨する
 - リクエスト時チェックは業務上の即時整合を担保する
 - cron は無アクセス時の掃除、運用画面整合、将来の通知拡張の土台とする
-- Xサーバでは PHP CLI で `public_html/api/bin/expire-reservations.php` を定期実行する
+- Xサーバでは PHP CLI で `public_html/api/bin/expire-reservations.php` を 5 分ごとに実行する
 
 ### 反映タイミング案
 

@@ -514,7 +514,7 @@ RewriteRule ^ index.php [L]
 - ただし決済開始後は `payment_started_at + 一定猶予時間` も考慮して失効判定する
 - `expired` の予約は予約枠計算と重複判定から除外する
 - `APP` は `payment_expires_at` を使って残り時間を表示し、期限切れ時は再予約導線を案内する
-- Xサーバでは CLI バッチ `public_html/api/bin/expire-reservations.php` を cron で定期実行する
+- Xサーバでは CLI バッチ `public_html/api/bin/expire-reservations.php` を cron で 5 分ごとに実行する
 
 ## 開発順序
 

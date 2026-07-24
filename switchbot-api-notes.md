@@ -237,6 +237,20 @@ status API の定期取得だけで状態が変わっていない場合は、`ch
 - いずれかの部屋で電池残量 `battery = 0` の場合は実行しない
 - 実行は `php bin/monitor-switchbot-locks.php` の中で行う
 
+### 1.7 閉め忘れアラート
+
+- `php bin/monitor-switchbot-locks.php` を 5 分ごとに cron 実行する
+- WEB予約は後バッファを含む `occupied_end_at`、運営予定は `end_at` を過ぎても部屋の鍵が解錠状態なら、管理者へメールを送信する
+- 利用終了より前から解錠状態が継続しているケースを閉め忘れとして判定する
+- 同じ予約・運営予定には繰り返し送信しない。送信済みの記録は `door_unlocked_alert_logs` に保存する
+
+### 1.8 監視エラーとログローテーション
+
+- `monitor-switchbot-locks.php` の実行結果には、失敗件数 `error_count` と、最大20件の `error_details` を出力する
+- `error_details` には対象ルーム、例外種別、エラーメッセージを含める
+- SwitchBot API通信ログ `storage/logs/switchbot.log` は 5MB 到達時に `switchbot-YYYYmmdd-HHMMSS.log` へ退避する
+- 退避ログは 30 日を超えると次回ローテーション時に削除する
+
 ### 2. `device_id` / `device_mac`
 
 現運用では、Webhook の `deviceMac` がそのまま `device_id` と同じ値として扱える前提で保存している。  
@@ -341,7 +355,7 @@ MySQL 移行時にここは強化対象です。
 7. `SWITCHBOT_WEBHOOK_SECRET` を設定し、Webhook URL に secret クエリを付ける
 8. ドア操作ログテーブルと状態保存テーブルを追加
 9. 時間外の解錠アラートを使う場合は `ADMIN_ALERT_EMAILS` を設定する
-10. `cron` で `php bin/monitor-switchbot-locks.php` を定期実行する
+10. `cron` で `php bin/monitor-switchbot-locks.php` を 5 分ごとに実行する（例: `*/5 * * * * php /path/to/api/bin/monitor-switchbot-locks.php`）
 11. エントランス自動施錠を使う場合は、管理画面 `/admin/doors` でトグルを有効にする
 
 ## 参照元

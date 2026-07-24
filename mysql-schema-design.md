@@ -403,7 +403,30 @@ SwitchBot への操作ログです。
 - `response_body`
 - `created_at`
 
-### 13. `switchbot_devices`
+### 13. `door_unlocked_alert_logs`
+
+閉め忘れアラートの送信履歴です。
+
+用途:
+
+- 同一のWEB予約または運営予定に対する重複メール送信の防止
+- 閉め忘れアラートの調査
+
+推奨カラム:
+
+- `id`
+- `room_id`
+- `target_type`
+- `target_id`
+- `detected_at`
+- `created_at`
+
+補足:
+
+- `target_type` は `reservation` または `reservation_block`
+- `(room_id, target_type, target_id)` を一意にする
+
+### 14. `switchbot_devices`
 
 SwitchBot デバイス一覧のキャッシュです。
 
@@ -428,7 +451,7 @@ SwitchBot デバイス一覧のキャッシュです。
 
 - 実運用では `device_mac` が取得できないケースもあるため、主キーは `device_id` を正とします
 
-### 14. `switchbot_lock_states`
+### 15. `switchbot_lock_states`
 
 SwitchBot ロックの最新状態キャッシュです。
 
@@ -680,6 +703,19 @@ CREATE TABLE door_command_logs (
   CONSTRAINT fk_door_command_logs_room FOREIGN KEY (room_id) REFERENCES rooms(id),
   KEY idx_door_command_logs_created (created_at),
   KEY idx_door_command_logs_reservation (reservation_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE door_unlocked_alert_logs (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  room_id VARCHAR(50) NOT NULL,
+  target_type VARCHAR(50) NOT NULL,
+  target_id VARCHAR(50) NOT NULL,
+  detected_at DATETIME NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  CONSTRAINT fk_door_unlocked_alert_logs_room FOREIGN KEY (room_id) REFERENCES rooms(id),
+  UNIQUE KEY uq_door_unlocked_alert_logs_target (room_id, target_type, target_id),
+  KEY idx_door_unlocked_alert_logs_detected (detected_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE switchbot_devices (

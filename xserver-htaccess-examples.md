@@ -239,10 +239,9 @@ Xサーバの cron コマンド例:
 /usr/bin/php8.3 /home/サーバーID/renta-room.com/public_html/api/bin/expire-reservations.php
 ```
 
-推奨間隔:
+実運用の実行間隔:
 
-- 初期案は `5分ごと`
-- 予約枠の回転をより厳密にしたい場合は `1分ごと`
+- `5分ごと`
 
 補足:
 
